@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>manuel asbeck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ebeae3;
+    --fg: #111111;
+    --muted: #9a9a96;
+    --link: #111111;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0e0c;
+      --fg: #ebeae3;
+      --muted: #5a5a56;
+      --link: #ebeae3;
+    }
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    font-weight: 400;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+  }
+
+  main {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  td {
+    vertical-align: top;
+    padding: 18px 0;
+    text-transform: uppercase;
+    line-height: 1.7;
+  }
+
+  td:first-child {
+    width: 45%;
+    padding-right: 24px;
+    text-align: right;
+  }
+
+  td:last-child {
+    width: 55%;
+    padding-left: 24px;
+  }
+
+  a {
+    color: var(--link);
+    text-decoration: none;
+    display: block;
+    transition: opacity 0.15s ease;
+  }
+
+  a:hover {
+    opacity: 0.5;
+  }
+
+  .disabled {
+    color: var(--muted);
+    pointer-events: none;
+    cursor: default;
+  }
+
+  @media (max-width: 520px) {
+    body {
+      padding: 32px 20px;
+    }
+    html, body {
+      font-size: 13px;
+    }
+    td:first-child {
+      padding-right: 16px;
+    }
+    td:last-child {
+      padding-left: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <table>
+      <tbody>
+        <tr>
+          <td>Manuel Asbeck</td>
+          <td>
+            <a href="https://flits.cc">Founder, Flits</a>
+            <a href="https://flits.cc">CEO, Flits</a>
+          </td>
+        </tr>
+        <tr>
+          <td>Holding Co</td>
+          <td>
+            <a href="https://flits.cc">Flits</a>
+            <a href="#" class="disabled">Looped</a>
+            <a href="#" class="disabled">Bits</a>
+            <a href="#" class="disabled">Waterly</a>
+          </td>
+        </tr>
+        <tr>
+          <td>Investments</td>
+          <td>
+            <a href="#" class="disabled">TBD</a>
+          </td>
+        </tr>
+        <tr>
+          <td>Contact</td>
+          <td>
+            <a href="mailto:manuel@flits.cc">manuel@flits.cc</a>
+            <a href="#" class="disabled">Instagram</a>
+            <a href="#" class="disabled">YouTube</a>
+            <a href="#" class="disabled">X</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
