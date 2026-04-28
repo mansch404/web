@@ -131,15 +131,15 @@
         <tr>
           <td class="name">Manuel J. Asbeck</td>
           <td>
-            <a href="https://flits.cc">Founder & CEO, Flits</a>
+            <a href="https://flits.cc" data-i18n="role">Founder & CEO, Flits</a>
           </td>
         </tr>
         <tr>
-          <td>About</td>
-          <td class="about-copy">Maker, builder, and entrepreneur <span class="disabled">turning ideas into useful software.</span></td>
+          <td data-i18n="aboutLabel">About</td>
+          <td class="about-copy"><span data-i18n="aboutLead">Maker, builder, and entrepreneur</span> <span class="disabled" data-i18n="aboutTail">turning ideas into useful software.</span></td>
         </tr>
         <tr>
-          <td>Holdings</td>
+          <td data-i18n="holdingsLabel">Holdings</td>
           <td>
             <a href="https://flits.cc">Flits</a>
             <a href="#" class="disabled">Looped</a>
@@ -156,13 +156,13 @@
         </tr>
         -->
         <tr>
-          <td>Press</td>
+          <td data-i18n="pressLabel">Press</td>
           <td>
             <a href="https://www.pnp.de/lokales/landkreis-dingolfing-landau/firmengruender-mit-gerade-mal-18-jahren-15279461">PNP</a>
           </td>
         </tr>
         <tr>
-          <td>Contact</td>
+          <td data-i18n="contactLabel">Contact</td>
           <td>
             <a href="mailto:manuel@flits.cc">manuel@flits.cc</a>
             <a href="https://www.instagram.com/maaansch/">Instagram</a>
@@ -176,5 +176,34 @@
       </tbody>
     </table>
   </main>
+  <script>
+    const translations = {
+      de: {
+        metaDescription: "Manuel J. Asbeck ist Macher, Entwickler und Unternehmer und verwandelt Ideen in nützliche Software. Gründer und CEO von Flits.",
+        role: "Gründer & CEO, Flits",
+        aboutLabel: "Über",
+        aboutLead: "Macher, Entwickler und Unternehmer",
+        aboutTail: "mit Fokus auf nützliche Software.",
+        holdingsLabel: "Beteiligungen",
+        pressLabel: "Presse",
+        contactLabel: "Kontakt"
+      }
+    };
+
+    const browserLanguages = navigator.languages || [navigator.language || navigator.userLanguage || "en"];
+    const selectedLanguage = browserLanguages
+      .map((language) => language.toLowerCase().split("-")[0])
+      .find((language) => language === "de" || language === "en");
+
+    if (selectedLanguage === "de") {
+      document.documentElement.lang = "de";
+      document
+        .querySelector('meta[name="description"]')
+        .setAttribute("content", translations.de.metaDescription);
+      document.querySelectorAll("[data-i18n]").forEach((element) => {
+        element.textContent = translations.de[element.dataset.i18n];
+      });
+    }
+  </script>
 </body>
 </html>
