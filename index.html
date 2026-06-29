@@ -285,12 +285,32 @@
     // Manuel's current location — the subject of the site, shown the same to
     // every visitor (NOT the visitor's own zone). Published value comes from
     // /api/location; falls back to this default until the backend is set up.
-    // The matching city in the ticker below is highlighted.
+    // The matching city in the ticker below is highlighted; if the current
+    // zone isn't one of the listed cities, it's added so it can still show.
     const DEFAULT_ZONE = "Europe/Berlin";
     let homeZone = DEFAULT_ZONE;
 
+    function isValidZone(tz) {
+      if (typeof tz !== "string" || !tz) return false;
+      try {
+        new Intl.DateTimeFormat("en-GB", { timeZone: tz });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function cityFromZone(tz) {
+      return tz.split("/").pop().replace(/_/g, " ").toUpperCase();
+    }
+
     function renderClock() {
-      const html = zones
+      // Ensure the current home zone is represented even if it isn't one of the
+      // six listed cities, so wherever Manuel is can always be highlighted.
+      const list = zones.some((zone) => zone.tz === homeZone)
+        ? zones
+        : [{ code: cityFromZone(homeZone), tz: homeZone }, ...zones];
+      const html = list
         .map((zone) => {
           const cls = zone.tz === homeZone ? "current" : "";
           return '<span class="' + cls + '">' + zone.code + " " + timeIn(zone.tz) + "</span>";
@@ -303,38 +323,44 @@
     renderClock();
     setInterval(renderClock, 10000);
 
-    // Read the published location (same for every visitor) and highlight it.
-    fetch("/api/location")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data && data.timeZone) {
-          homeZone = data.timeZone;
-          renderClock();
+    // Sync the published location, then — if this is Manuel's own device —
+    // publish wherever he is now. Order matters: read the stored zone FIRST so
+    // the owner-publish compares against the stored value. Otherwise it would
+    // compare against the default and skip updating when he returns home, and a
+    // late GET could overwrite his real location with a stale stored one.
+    async function syncLocation() {
+      try {
+        const res = await fetch("/api/location");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && isValidZone(data.timeZone)) {
+            homeZone = data.timeZone;
+            renderClock();
+          }
         }
-      })
-      .catch(() => {});
+      } catch (e) {}
 
-    // If this is Manuel's own device (owner token stored once via
-    // /set.html?token=…), silently publish wherever he is now — so traveling
-    // updates the site automatically, with no editing.
-    const ownerToken = localStorage.getItem("ownerToken");
-    if (ownerToken) {
+      // Owner device (token stored once via /set.html?token=…) republishes its
+      // current zone whenever it differs from the stored one — so both
+      // traveling and returning home update the site with no editing.
+      const ownerToken = localStorage.getItem("ownerToken");
+      if (!ownerToken) return;
       const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (deviceZone && deviceZone !== homeZone) {
-        fetch("/api/location", {
+      if (!isValidZone(deviceZone) || deviceZone === homeZone) return;
+      try {
+        const res = await fetch("/api/location", {
           method: "POST",
           headers: { "content-type": "application/json", "x-set-secret": ownerToken },
           body: JSON.stringify({ timeZone: deviceZone })
-        })
-          .then((r) => {
-            if (r.ok) {
-              homeZone = deviceZone;
-              renderClock();
-            }
-          })
-          .catch(() => {});
-      }
+        });
+        if (res.ok) {
+          homeZone = deviceZone;
+          renderClock();
+        }
+      } catch (e) {}
     }
+
+    syncLocation();
 
     // Register the service worker so the home-screen app works offline.
     if ("serviceWorker" in navigator) {
