@@ -129,7 +129,8 @@
     font-size: 12px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    white-space: nowrap;
+    line-height: 1.6;
+    padding: 0 20px;
     pointer-events: none;
   }
 
@@ -245,9 +246,12 @@
     }
 
     const zones = [
-      { code: "BERLIN", tz: "Europe/Berlin" },
-      { code: "NYC", tz: "America/New_York" },
-      { code: "SF", tz: "America/Los_Angeles" }
+      { code: "MUNICH", tz: "Europe/Berlin" },
+      { code: "LONDON", tz: "Europe/London" },
+      { code: "SEATTLE", tz: "America/Los_Angeles" },
+      { code: "CYPRUS", tz: "Asia/Nicosia" },
+      { code: "DUBAI", tz: "Asia/Dubai" },
+      { code: "TOKYO", tz: "Asia/Tokyo" }
     ];
 
     const clock = document.querySelector(".clock");
