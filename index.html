@@ -113,10 +113,6 @@
     font-weight: 800;
   }
 
-  .loc {
-    color: var(--muted);
-  }
-
   .clock {
     position: fixed;
     left: 0;
@@ -134,6 +130,13 @@
   .ticker {
     display: inline-block;
     animation: ticker 36s linear infinite;
+  }
+
+  /* The city Manuel is currently in stands out against the muted ticker:
+     brighter in dark mode, darker in light mode. */
+  .clock .current {
+    color: var(--fg);
+    font-weight: 800;
   }
 
   @keyframes ticker {
@@ -179,10 +182,6 @@
           <td>
             <a href="https://flits.cc" data-i18n="role">Founder & CEO, Flits</a>
           </td>
-        </tr>
-        <tr>
-          <td data-i18n="locationLabel">Currently</td>
-          <td><span class="loc"></span></td>
         </tr>
         <tr>
           <td data-i18n="aboutLabel">About</td>
@@ -232,7 +231,6 @@
       de: {
         metaDescription: "Manuel J. Asbeck ist Entwickler und Unternehmer und verwandelt Ideen in nützliche Software. Gründer und CEO von Flits.",
         role: "Gründer & CEO, Flits",
-        locationLabel: "Aktuell",
         aboutLabel: "Über",
         aboutLead: "Entwickler und Unternehmer",
         aboutTail: "mit Fokus auf nützliche Software.",
@@ -284,40 +282,34 @@
     track.append(copyA, copyB);
     clock.append(track);
 
+    // Manuel's current location — the subject of the site, shown the same to
+    // every visitor (NOT the visitor's own zone). Published value comes from
+    // /api/location; falls back to this default until the backend is set up.
+    // The matching city in the ticker below is highlighted.
+    const DEFAULT_ZONE = "Europe/Berlin";
+    let homeZone = DEFAULT_ZONE;
+
     function renderClock() {
-      const line = zones
-        .map((zone) => zone.code + " " + timeIn(zone.tz))
+      const html = zones
+        .map((zone) => {
+          const cls = zone.tz === homeZone ? "current" : "";
+          return '<span class="' + cls + '">' + zone.code + " " + timeIn(zone.tz) + "</span>";
+        })
         .join("  —  ") + "  —  ";
-      copyA.textContent = line;
-      copyB.textContent = line;
+      copyA.innerHTML = html;
+      copyB.innerHTML = html;
     }
 
     renderClock();
     setInterval(renderClock, 10000);
 
-    // Manuel's current location — the subject of the site, shown the same to
-    // every visitor (NOT the visitor's own zone). Published value comes from
-    // /api/location; falls back to this default until the backend is set up.
-    const DEFAULT_ZONE = "Europe/Berlin";
-    let homeZone = DEFAULT_ZONE;
-
-    const loc = document.querySelector(".loc");
-
-    function renderLocal() {
-      const city = homeZone.split("/").pop().replace(/_/g, " ").toUpperCase();
-      loc.textContent = city + " " + timeIn(homeZone);
-    }
-
-    renderLocal();
-    setInterval(renderLocal, 10000);
-
-    // Read the published location (same for every visitor).
+    // Read the published location (same for every visitor) and highlight it.
     fetch("/api/location")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data && data.timeZone) {
           homeZone = data.timeZone;
-          renderLocal();
+          renderClock();
         }
       })
       .catch(() => {});
@@ -337,7 +329,7 @@
           .then((r) => {
             if (r.ok) {
               homeZone = deviceZone;
-              renderLocal();
+              renderClock();
             }
           })
           .catch(() => {});
