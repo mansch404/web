@@ -104,38 +104,32 @@
     font-weight: 800;
   }
 
-  .cursor {
-    display: inline-block;
-    width: 0.6ch;
-    height: 1em;
-    margin-left: 0.2ch;
-    background: var(--fg);
-    vertical-align: -0.05em;
-    animation: blink 1.1s infinite;
-  }
-
-  @keyframes blink {
-    0%, 50% { opacity: 1; }
-    50.01%, 100% { opacity: 0; }
-  }
-
   .clock {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 22px;
-    text-align: center;
+    overflow: hidden;
     color: var(--muted);
     font-size: 12px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    line-height: 1.6;
-    padding: 0 20px;
+    white-space: nowrap;
     pointer-events: none;
   }
 
+  .ticker {
+    display: inline-block;
+    animation: ticker 36s linear infinite;
+  }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .cursor { animation: none; }
+    .ticker { animation: none; }
   }
 
   .about-copy {
@@ -168,7 +162,7 @@
     <table>
       <tbody>
         <tr>
-          <td class="name">Manuel J. Asbeck<span class="cursor" aria-hidden="true"></span></td>
+          <td class="name">Manuel J. Asbeck</td>
           <td>
             <a href="https://flits.cc" data-i18n="role">Founder & CEO, Flits</a>
           </td>
@@ -265,10 +259,19 @@
       }).format(new Date());
     }
 
+    const track = document.createElement("div");
+    track.className = "ticker";
+    const copyA = document.createElement("span");
+    const copyB = document.createElement("span");
+    track.append(copyA, copyB);
+    clock.append(track);
+
     function renderClock() {
-      clock.textContent = zones
+      const line = zones
         .map((zone) => zone.code + " " + timeIn(zone.tz))
-        .join("  —  ");
+        .join("  —  ") + "  —  ";
+      copyA.textContent = line;
+      copyB.textContent = line;
     }
 
     renderClock();
