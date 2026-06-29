@@ -104,6 +104,34 @@
     font-weight: 800;
   }
 
+  .clock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 22px;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .ticker {
+    display: inline-block;
+    animation: ticker 36s linear infinite;
+  }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ticker { animation: none; }
+  }
+
   .about-copy {
     max-width: 31ch;
   }
@@ -120,6 +148,11 @@
     }
     td:last-child {
       padding-left: 16px;
+    }
+    .clock {
+      font-size: 11px;
+      bottom: 16px;
+      letter-spacing: 0.1em;
     }
   }
 </style>
@@ -176,6 +209,7 @@
       </tbody>
     </table>
   </main>
+  <footer class="clock" aria-hidden="true"></footer>
   <script>
     const translations = {
       de: {
@@ -204,6 +238,44 @@
         element.textContent = translations.de[element.dataset.i18n];
       });
     }
+
+    const zones = [
+      { code: "MUNICH", tz: "Europe/Berlin" },
+      { code: "LONDON", tz: "Europe/London" },
+      { code: "SEATTLE", tz: "America/Los_Angeles" },
+      { code: "CYPRUS", tz: "Asia/Nicosia" },
+      { code: "DUBAI", tz: "Asia/Dubai" },
+      { code: "TOKYO", tz: "Asia/Tokyo" }
+    ];
+
+    const clock = document.querySelector(".clock");
+
+    function timeIn(timeZone) {
+      return new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone
+      }).format(new Date());
+    }
+
+    const track = document.createElement("div");
+    track.className = "ticker";
+    const copyA = document.createElement("span");
+    const copyB = document.createElement("span");
+    track.append(copyA, copyB);
+    clock.append(track);
+
+    function renderClock() {
+      const line = zones
+        .map((zone) => zone.code + " " + timeIn(zone.tz))
+        .join("  —  ") + "  —  ";
+      copyA.textContent = line;
+      copyB.textContent = line;
+    }
+
+    renderClock();
+    setInterval(renderClock, 10000);
   </script>
 </body>
 </html>
