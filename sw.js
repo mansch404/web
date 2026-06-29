@@ -26,6 +26,8 @@ self.addEventListener("activate", (event) => {
 // Network-first so content stays fresh, falling back to cache when offline.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  // Never cache the dynamic location API — always hit the network.
+  if (new URL(event.request.url).pathname.startsWith("/api/")) return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {

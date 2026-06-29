@@ -113,6 +113,10 @@
     font-weight: 800;
   }
 
+  .loc {
+    color: var(--muted);
+  }
+
   .clock {
     position: fixed;
     left: 0;
@@ -124,21 +128,6 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     white-space: nowrap;
-    pointer-events: none;
-  }
-
-  .local {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: 22px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
     pointer-events: none;
   }
 
@@ -178,11 +167,6 @@
       bottom: 16px;
       letter-spacing: 0.1em;
     }
-    .local {
-      font-size: 11px;
-      top: 16px;
-      letter-spacing: 0.1em;
-    }
   }
 </style>
 </head>
@@ -195,6 +179,10 @@
           <td>
             <a href="https://flits.cc" data-i18n="role">Founder & CEO, Flits</a>
           </td>
+        </tr>
+        <tr>
+          <td data-i18n="locationLabel">Currently</td>
+          <td><span class="loc"></span></td>
         </tr>
         <tr>
           <td data-i18n="aboutLabel">About</td>
@@ -238,13 +226,13 @@
       </tbody>
     </table>
   </main>
-  <header class="local"></header>
   <footer class="clock" aria-hidden="true"></footer>
   <script>
     const translations = {
       de: {
         metaDescription: "Manuel J. Asbeck ist Entwickler und Unternehmer und verwandelt Ideen in nützliche Software. Gründer und CEO von Flits.",
         role: "Gründer & CEO, Flits",
+        locationLabel: "Aktuell",
         aboutLabel: "Über",
         aboutLead: "Entwickler und Unternehmer",
         aboutTail: "mit Fokus auf nützliche Software.",
@@ -308,19 +296,53 @@
     setInterval(renderClock, 10000);
 
     // Manuel's current location — the subject of the site, shown the same to
-    // every visitor (NOT the visitor's own time zone). Update this IANA name
-    // when he travels, e.g. "America/Los_Angeles" or "Asia/Dubai".
-    const HOME_ZONE = "Europe/Berlin";
+    // every visitor (NOT the visitor's own zone). Published value comes from
+    // /api/location; falls back to this default until the backend is set up.
+    const DEFAULT_ZONE = "Europe/Berlin";
+    let homeZone = DEFAULT_ZONE;
 
-    const local = document.querySelector(".local");
+    const loc = document.querySelector(".loc");
 
     function renderLocal() {
-      const city = HOME_ZONE.split("/").pop().replace(/_/g, " ").toUpperCase();
-      local.textContent = "CURRENTLY · " + city + " " + timeIn(HOME_ZONE);
+      const city = homeZone.split("/").pop().replace(/_/g, " ").toUpperCase();
+      loc.textContent = city + " " + timeIn(homeZone);
     }
 
     renderLocal();
     setInterval(renderLocal, 10000);
+
+    // Read the published location (same for every visitor).
+    fetch("/api/location")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && data.timeZone) {
+          homeZone = data.timeZone;
+          renderLocal();
+        }
+      })
+      .catch(() => {});
+
+    // If this is Manuel's own device (owner token stored once via
+    // /set.html?token=…), silently publish wherever he is now — so traveling
+    // updates the site automatically, with no editing.
+    const ownerToken = localStorage.getItem("ownerToken");
+    if (ownerToken) {
+      const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (deviceZone && deviceZone !== homeZone) {
+        fetch("/api/location", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-set-secret": ownerToken },
+          body: JSON.stringify({ timeZone: deviceZone })
+        })
+          .then((r) => {
+            if (r.ok) {
+              homeZone = deviceZone;
+              renderLocal();
+            }
+          })
+          .catch(() => {});
+      }
+    }
 
     // Register the service worker so the home-screen app works offline.
     if ("serviceWorker" in navigator) {
