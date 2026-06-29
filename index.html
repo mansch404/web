@@ -104,6 +104,39 @@
     font-weight: 800;
   }
 
+  .cursor {
+    display: inline-block;
+    width: 0.6ch;
+    height: 1em;
+    margin-left: 0.2ch;
+    background: var(--fg);
+    vertical-align: -0.05em;
+    animation: blink 1.1s infinite;
+  }
+
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
+  }
+
+  .clock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 22px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cursor { animation: none; }
+  }
+
   .about-copy {
     max-width: 31ch;
   }
@@ -121,6 +154,11 @@
     td:last-child {
       padding-left: 16px;
     }
+    .clock {
+      font-size: 11px;
+      bottom: 16px;
+      letter-spacing: 0.1em;
+    }
   }
 </style>
 </head>
@@ -129,7 +167,7 @@
     <table>
       <tbody>
         <tr>
-          <td class="name">Manuel J. Asbeck</td>
+          <td class="name">Manuel J. Asbeck<span class="cursor" aria-hidden="true"></span></td>
           <td>
             <a href="https://flits.cc" data-i18n="role">Founder & CEO, Flits</a>
           </td>
@@ -176,6 +214,7 @@
       </tbody>
     </table>
   </main>
+  <footer class="clock" aria-hidden="true"></footer>
   <script>
     const translations = {
       de: {
@@ -204,6 +243,32 @@
         element.textContent = translations.de[element.dataset.i18n];
       });
     }
+
+    const zones = [
+      { code: "BERLIN", tz: "Europe/Berlin" },
+      { code: "NYC", tz: "America/New_York" },
+      { code: "SF", tz: "America/Los_Angeles" }
+    ];
+
+    const clock = document.querySelector(".clock");
+
+    function timeIn(timeZone) {
+      return new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone
+      }).format(new Date());
+    }
+
+    function renderClock() {
+      clock.textContent = zones
+        .map((zone) => zone.code + " " + timeIn(zone.tz))
+        .join("  —  ");
+    }
+
+    renderClock();
+    setInterval(renderClock, 10000);
   </script>
 </body>
 </html>
