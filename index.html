@@ -307,15 +307,16 @@
     renderClock();
     setInterval(renderClock, 10000);
 
-    // Automatically detect the visitor's current time zone and show it up top
-    // in the same muted font (lighter in light mode, darker in dark mode).
+    // Manuel's current location — the subject of the site, shown the same to
+    // every visitor (NOT the visitor's own time zone). Update this IANA name
+    // when he travels, e.g. "America/Los_Angeles" or "Asia/Dubai".
+    const HOME_ZONE = "Europe/Berlin";
+
     const local = document.querySelector(".local");
-    const localZone =
-      (Intl.DateTimeFormat().resolvedOptions().timeZone) || "UTC";
 
     function renderLocal() {
-      const city = localZone.split("/").pop().replace(/_/g, " ").toUpperCase();
-      local.textContent = "YOU · " + city + " " + timeIn(localZone);
+      const city = HOME_ZONE.split("/").pop().replace(/_/g, " ").toUpperCase();
+      local.textContent = "CURRENTLY · " + city + " " + timeIn(HOME_ZONE);
     }
 
     renderLocal();
