@@ -6,6 +6,15 @@
 <meta name="description" content="Manuel J. Asbeck is a maker, builder, and entrepreneur turning ideas into useful software. Founder and CEO of Flits.">
 <title>Manuel Asbeck</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22%3E%3Ctext%20y=%22.9em%22%20font-size=%2290%22%3E%F0%9F%8C%B4%3C/text%3E%3C/svg%3E">
+<!-- PWA / Add to Home Screen -->
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Manuel Asbeck">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f4f4f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e0c" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap" rel="stylesheet">
@@ -118,6 +127,21 @@
     pointer-events: none;
   }
 
+  .local {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 22px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
   .ticker {
     display: inline-block;
     animation: ticker 36s linear infinite;
@@ -152,6 +176,11 @@
     .clock {
       font-size: 11px;
       bottom: 16px;
+      letter-spacing: 0.1em;
+    }
+    .local {
+      font-size: 11px;
+      top: 16px;
       letter-spacing: 0.1em;
     }
   }
@@ -209,6 +238,7 @@
       </tbody>
     </table>
   </main>
+  <header class="local"></header>
   <footer class="clock" aria-hidden="true"></footer>
   <script>
     const translations = {
@@ -276,6 +306,27 @@
 
     renderClock();
     setInterval(renderClock, 10000);
+
+    // Automatically detect the visitor's current time zone and show it up top
+    // in the same muted font (lighter in light mode, darker in dark mode).
+    const local = document.querySelector(".local");
+    const localZone =
+      (Intl.DateTimeFormat().resolvedOptions().timeZone) || "UTC";
+
+    function renderLocal() {
+      const city = localZone.split("/").pop().replace(/_/g, " ").toUpperCase();
+      local.textContent = "YOU · " + city + " " + timeIn(localZone);
+    }
+
+    renderLocal();
+    setInterval(renderLocal, 10000);
+
+    // Register the service worker so the home-screen app works offline.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>
