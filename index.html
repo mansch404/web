@@ -6,6 +6,15 @@
 <meta name="description" content="Manuel J. Asbeck is a maker, builder, and entrepreneur turning ideas into useful software. Founder and CEO of Flits.">
 <title>Manuel Asbeck</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22%3E%3Ctext%20y=%22.9em%22%20font-size=%2290%22%3E%F0%9F%8C%B4%3C/text%3E%3C/svg%3E">
+<!-- PWA / Add to Home Screen -->
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Manuel Asbeck">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f4f4f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e0c" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap" rel="stylesheet">
@@ -121,6 +130,13 @@
   .ticker {
     display: inline-block;
     animation: ticker 36s linear infinite;
+  }
+
+  /* The city Manuel is currently in stands out against the muted ticker:
+     brighter in dark mode, darker in light mode. */
+  .clock .current {
+    color: var(--fg);
+    font-weight: 800;
   }
 
   @keyframes ticker {
@@ -266,16 +282,92 @@
     track.append(copyA, copyB);
     clock.append(track);
 
+    // Manuel's current location — the subject of the site, shown the same to
+    // every visitor (NOT the visitor's own zone). Published value comes from
+    // /api/location; falls back to this default until the backend is set up.
+    // The matching city in the ticker below is highlighted; if the current
+    // zone isn't one of the listed cities, it's added so it can still show.
+    const DEFAULT_ZONE = "Asia/Tokyo";
+    let homeZone = DEFAULT_ZONE;
+
+    function isValidZone(tz) {
+      if (typeof tz !== "string" || !tz) return false;
+      try {
+        new Intl.DateTimeFormat("en-GB", { timeZone: tz });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function cityFromZone(tz) {
+      return tz.split("/").pop().replace(/_/g, " ").toUpperCase();
+    }
+
     function renderClock() {
-      const line = zones
-        .map((zone) => zone.code + " " + timeIn(zone.tz))
+      // Ensure the current home zone is represented even if it isn't one of the
+      // six listed cities, so wherever Manuel is can always be highlighted.
+      const list = zones.some((zone) => zone.tz === homeZone)
+        ? zones
+        : [{ code: cityFromZone(homeZone), tz: homeZone }, ...zones];
+      const html = list
+        .map((zone) => {
+          const cls = zone.tz === homeZone ? "current" : "";
+          return '<span class="' + cls + '">' + zone.code + " " + timeIn(zone.tz) + "</span>";
+        })
         .join("  —  ") + "  —  ";
-      copyA.textContent = line;
-      copyB.textContent = line;
+      copyA.innerHTML = html;
+      copyB.innerHTML = html;
     }
 
     renderClock();
     setInterval(renderClock, 10000);
+
+    // Sync the published location, then — if this is Manuel's own device —
+    // publish wherever he is now. Order matters: read the stored zone FIRST so
+    // the owner-publish compares against the stored value. Otherwise it would
+    // compare against the default and skip updating when he returns home, and a
+    // late GET could overwrite his real location with a stale stored one.
+    async function syncLocation() {
+      try {
+        const res = await fetch("/api/location");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && isValidZone(data.timeZone)) {
+            homeZone = data.timeZone;
+            renderClock();
+          }
+        }
+      } catch (e) {}
+
+      // Owner device (token stored once via /set.html?token=…) republishes its
+      // current zone whenever it differs from the stored one — so both
+      // traveling and returning home update the site with no editing.
+      const ownerToken = localStorage.getItem("ownerToken");
+      if (!ownerToken) return;
+      const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (!isValidZone(deviceZone) || deviceZone === homeZone) return;
+      try {
+        const res = await fetch("/api/location", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-set-secret": ownerToken },
+          body: JSON.stringify({ timeZone: deviceZone })
+        });
+        if (res.ok) {
+          homeZone = deviceZone;
+          renderClock();
+        }
+      } catch (e) {}
+    }
+
+    syncLocation();
+
+    // Register the service worker so the home-screen app works offline.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>

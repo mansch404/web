@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Set owner</title>
+</head>
+<body>
+<script>
+  // Visit ONCE on Manuel's phone: /set.html?token=YOUR_SECRET
+  // This marks this device as the owner. Afterwards, simply opening the
+  // homepage from this device keeps the published location in sync with
+  // wherever he currently is. Run it inside the home-screen app too if you
+  // added one (standalone apps have separate storage from Safari).
+  const token = new URLSearchParams(location.search).get("token");
+  if (token) {
+    localStorage.setItem("ownerToken", token);
+  } else {
+    localStorage.removeItem("ownerToken");
+  }
+  location.replace("/");
+</script>
+</body>
+</html>
