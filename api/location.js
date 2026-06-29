@@ -7,7 +7,7 @@
 // and rejects writes, so the site still works.
 
 const STORE_KEY = "home_timezone";
-const DEFAULT_ZONE = "Europe/Berlin";
+const DEFAULT_ZONE = "Asia/Tokyo";
 
 function kvEnv() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
