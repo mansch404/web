@@ -145,6 +145,14 @@
 
   .ticker {
     display: inline-block;
+    /* Two identical copies sit side by side and the track slides left by
+       exactly one copy (translateX(-50%)) before snapping back, so the loop is
+       seamless. That only holds if both copies render the SAME width, which
+       requires white-space: pre — under the inherited "nowrap" the trailing
+       whitespace of the second copy is trimmed at the line end, making it
+       narrower than the first and leaving the -50% point just short of the
+       seam, which shows up as a jump on every rotation. */
+    white-space: pre;
     animation: ticker 36s linear infinite;
   }
 
@@ -288,6 +296,7 @@
       return new Intl.DateTimeFormat("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
+        second: "2-digit",
         hour12: false,
         timeZone
       }).format(new Date());
@@ -341,7 +350,7 @@
         const time = document.createElement("span");
         time.textContent = timeIn(zone.tz);
         cell.append(zone.code + " ", time);
-        copy.append(cell, document.createTextNode("  —  "));
+        copy.append(cell, document.createTextNode(" — "));
         cells.push(time);
       });
       return cells;
@@ -368,7 +377,10 @@
     }
 
     renderClock();
-    setInterval(renderClock, 10000);
+    // Tick every second so the seconds visibly advance. The cells are updated
+    // in place (text only, never rebuilt) and the font is monospace, so the
+    // digits change without reflowing the bar or disturbing the animation.
+    setInterval(renderClock, 1000);
 
     // Sync the published location, then — if this is Manuel's own device —
     // publish wherever he is now. Order matters: read the stored zone FIRST so
