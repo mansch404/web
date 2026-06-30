@@ -282,12 +282,12 @@
     }
 
     const zones = [
-      { code: "MUNICH", tz: "Europe/Berlin" },
-      { code: "LONDON", tz: "Europe/London" },
-      { code: "SEATTLE", tz: "America/Los_Angeles" },
-      { code: "CYPRUS", tz: "Asia/Nicosia" },
-      { code: "DUBAI", tz: "Asia/Dubai" },
-      { code: "TOKYO", tz: "Asia/Tokyo" }
+      { code: "MUC", tz: "Europe/Berlin" },
+      { code: "LON", tz: "Europe/London" },
+      { code: "SEA", tz: "America/Los_Angeles" },
+      { code: "LCA", tz: "Asia/Nicosia" },
+      { code: "DXB", tz: "Asia/Dubai" },
+      { code: "TYO", tz: "Asia/Tokyo" }
     ];
 
     const clock = document.querySelector(".clock");
@@ -327,8 +327,20 @@
       }
     }
 
+    // Airport codes for zones that may turn up as the home zone but aren't in
+    // the listed cities above. Falls back to deriving from the IANA zone name
+    // (uppercased city) when there's no mapping.
+    const ZONE_CODES = {
+      "Europe/Berlin": "MUC",
+      "Europe/London": "LON",
+      "America/Los_Angeles": "SEA",
+      "Asia/Nicosia": "LCA",
+      "Asia/Dubai": "DXB",
+      "Asia/Tokyo": "TYO"
+    };
+
     function cityFromZone(tz) {
-      return tz.split("/").pop().replace(/_/g, " ").toUpperCase();
+      return ZONE_CODES[tz] || tz.split("/").pop().replace(/_/g, " ").toUpperCase();
     }
 
     // The ticker animates continuously, so the DOM must stay stable: tearing it
