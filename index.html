@@ -320,20 +320,49 @@
       return tz.split("/").pop().replace(/_/g, " ").toUpperCase();
     }
 
+    // The ticker animates continuously, so the DOM must stay stable: tearing it
+    // down and rebuilding innerHTML on every tick makes the bar flash/disappear.
+    // We build the nodes once (keeping a handle on each time cell) and only
+    // rewrite the time text in place, rebuilding solely when the zone list
+    // itself changes (e.g. the home zone moves to a new city).
+    let clockSignature = null;
+    let currentList = [];
+    let timeCellsA = [];
+    let timeCellsB = [];
+
+    function buildTrack(list, copy) {
+      copy.textContent = "";
+      const cells = [];
+      list.forEach((zone) => {
+        const cell = document.createElement("span");
+        if (zone.tz === homeZone) cell.className = "current";
+        const time = document.createElement("span");
+        time.textContent = timeIn(zone.tz);
+        cell.append(zone.code + " ", time);
+        copy.append(cell, document.createTextNode("  —  "));
+        cells.push(time);
+      });
+      return cells;
+    }
+
     function renderClock() {
       // Ensure the current home zone is represented even if it isn't one of the
       // six listed cities, so wherever Manuel is can always be highlighted.
       const list = zones.some((zone) => zone.tz === homeZone)
         ? zones
         : [{ code: cityFromZone(homeZone), tz: homeZone }, ...zones];
-      const html = list
-        .map((zone) => {
-          const cls = zone.tz === homeZone ? "current" : "";
-          return '<span class="' + cls + '">' + zone.code + " " + timeIn(zone.tz) + "</span>";
-        })
-        .join("  —  ") + "  —  ";
-      copyA.innerHTML = html;
-      copyB.innerHTML = html;
+      const signature = list.map((zone) => zone.tz).join("|") + "@" + homeZone;
+      if (signature !== clockSignature) {
+        timeCellsA = buildTrack(list, copyA);
+        timeCellsB = buildTrack(list, copyB);
+        currentList = list;
+        clockSignature = signature;
+      }
+      currentList.forEach((zone, i) => {
+        const time = timeIn(zone.tz);
+        if (timeCellsA[i].textContent !== time) timeCellsA[i].textContent = time;
+        if (timeCellsB[i].textContent !== time) timeCellsB[i].textContent = time;
+      });
     }
 
     renderClock();
