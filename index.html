@@ -334,15 +334,17 @@
     // The ticker animates continuously, so the DOM must stay stable: tearing it
     // down and rebuilding innerHTML on every tick makes the bar flash/disappear.
     // We build the nodes once (keeping a handle on each time cell) and only
-    // rewrite the time text in place, rebuilding solely when the zone list
-    // itself changes (e.g. the home zone moves to a new city).
+    // rewrite the time text in place, rebuilding solely when the inputs that
+    // affect layout change (the zone list, the home zone, or the viewport
+    // width) — never on a plain time tick.
+    const SECONDS_PER_PASS = 36;
     let clockSignature = null;
     let currentList = [];
     let timeCellsA = [];
     let timeCellsB = [];
 
-    function buildTrack(list, copy) {
-      copy.textContent = "";
+    // Append the list once to a copy, returning a handle on each time cell.
+    function appendPass(list, copy) {
       const cells = [];
       list.forEach((zone) => {
         const cell = document.createElement("span");
@@ -356,23 +358,64 @@
       return cells;
     }
 
+    // The track is two identical copies sliding left by exactly one copy
+    // (translateX(-50%)) before snapping back. That is only gap-free if a
+    // single copy is at least as wide as the visible bar — otherwise its
+    // trailing edge clears the screen at the -50% mark and the bar blanks for a
+    // frame before the loop restarts. So we repeat the list enough times that
+    // one copy fills the viewport, then scale the duration by that repeat count
+    // to keep the scroll speed constant regardless of how many passes it took.
+    function buildTracks(list) {
+      copyA.textContent = "";
+      const probe = appendPass(list, copyA);
+      const onePassW = copyA.getBoundingClientRect().width;
+      const reps = onePassW > 0
+        ? Math.max(1, Math.ceil(clock.clientWidth / onePassW))
+        : 1;
+
+      let cellsA = probe;
+      let cellsB = [];
+      copyB.textContent = "";
+      cellsB = cellsB.concat(appendPass(list, copyB));
+      for (let r = 1; r < reps; r++) {
+        cellsA = cellsA.concat(appendPass(list, copyA));
+        cellsB = cellsB.concat(appendPass(list, copyB));
+      }
+
+      track.style.animationDuration = reps * SECONDS_PER_PASS + "s";
+      return { cellsA, cellsB };
+    }
+
     function renderClock() {
       // Ensure the current home zone is represented even if it isn't one of the
       // six listed cities, so wherever Manuel is can always be highlighted.
       const list = zones.some((zone) => zone.tz === homeZone)
         ? zones
         : [{ code: cityFromZone(homeZone), tz: homeZone }, ...zones];
-      const signature = list.map((zone) => zone.tz).join("|") + "@" + homeZone;
+      const signature =
+        list.map((zone) => zone.tz).join("|") + "@" + homeZone + "@" + clock.clientWidth;
       if (signature !== clockSignature) {
-        timeCellsA = buildTrack(list, copyA);
-        timeCellsB = buildTrack(list, copyB);
+        const built = buildTracks(list);
+        timeCellsA = built.cellsA;
+        timeCellsB = built.cellsB;
         currentList = list;
         clockSignature = signature;
       }
-      currentList.forEach((zone, i) => {
-        const time = timeIn(zone.tz);
+      // Cells repeat the list, so map each one back to its zone by its position.
+      for (let i = 0; i < timeCellsA.length; i++) {
+        const time = timeIn(currentList[i % currentList.length].tz);
         if (timeCellsA[i].textContent !== time) timeCellsA[i].textContent = time;
         if (timeCellsB[i].textContent !== time) timeCellsB[i].textContent = time;
+      }
+    }
+
+    // The viewport width and the (async) web font both change how many passes
+    // are needed; rebuild when either settles so a copy always covers the bar.
+    window.addEventListener("resize", renderClock);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        clockSignature = null;
+        renderClock();
       });
     }
 
