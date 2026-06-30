@@ -145,15 +145,15 @@
 
   .ticker {
     display: inline-block;
-    /* Two identical copies sit side by side and the track slides left by
-       exactly one copy (translateX(-50%)) before snapping back, so the loop is
-       seamless. That only holds if both copies render the SAME width, which
-       requires white-space: pre — under the inherited "nowrap" the trailing
-       whitespace of the second copy is trimmed at the line end, making it
-       narrower than the first and leaving the -50% point just short of the
-       seam, which shows up as a jump on every rotation. */
+    /* The bar scrolls as a treadmill: JS translates the track left every frame
+       and recycles each item from the front to the back the instant it clears
+       the screen (see renderClock). Because the recycle subtracts the recycled
+       item's width from the offset in the same frame, the visible content never
+       moves at the seam — there is no end to snap back from, so no flicker.
+       white-space: pre keeps the inter-item spacing exact so widths measure
+       consistently. */
     white-space: pre;
-    animation: ticker 36s linear infinite;
+    will-change: transform;
   }
 
   /* The city Manuel is currently in stands out against the muted ticker:
@@ -161,15 +161,6 @@
   .clock .current {
     color: var(--fg);
     font-weight: 800;
-  }
-
-  @keyframes ticker {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .ticker { animation: none; }
   }
 
   .about-copy {
@@ -304,9 +295,6 @@
 
     const track = document.createElement("div");
     track.className = "ticker";
-    const copyA = document.createElement("span");
-    const copyB = document.createElement("span");
-    track.append(copyA, copyB);
     clock.append(track);
 
     // Manuel's current location — the subject of the site, shown the same to
@@ -343,59 +331,97 @@
       return ZONE_CODES[tz] || tz.split("/").pop().replace(/_/g, " ").toUpperCase();
     }
 
-    // The ticker animates continuously, so the DOM must stay stable: tearing it
-    // down and rebuilding innerHTML on every tick makes the bar flash/disappear.
-    // We build the nodes once (keeping a handle on each time cell) and only
-    // rewrite the time text in place, rebuilding solely when the inputs that
-    // affect layout change (the zone list, the home zone, or the viewport
-    // width) — never on a plain time tick.
+    // The ticker scrolls as a continuous treadmill rather than a looping CSS
+    // animation. The old approach slid two copies left by one copy width and
+    // snapped the transform back to 0 on every cycle; any sub-pixel mismatch at
+    // that snap showed up as a flicker. Here there is no snap: a single chain of
+    // items is translated left each frame, and the moment an item's right edge
+    // clears the left of the screen it is moved to the end of the chain and its
+    // width is subtracted from the offset in the SAME frame. The removal shifts
+    // everything left by that width while the smaller offset shifts everything
+    // right by the same width, so the visible content never jumps — the bar
+    // runs forever with no seam to flicker at.
     const SECONDS_PER_PASS = 36;
     let clockSignature = null;
-    let currentList = [];
-    let timeCellsA = [];
-    let timeCellsB = [];
+    // Each item: { el, timeEl, tz, w } — el is the scrolling unit (city + time
+    // + separator), timeEl is the node whose text we rewrite each second, w is
+    // its cached pixel width used to decide when it has scrolled off-screen.
+    let items = [];
+    let offset = 0;          // px the track is currently shifted left
+    let pxPerSecond = 0;     // scroll speed, derived from one pass width
+    let rafId = null;
+    let lastTs = null;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    // Append the list once to a copy, returning a handle on each time cell.
-    function appendPass(list, copy) {
-      const cells = [];
-      list.forEach((zone) => {
-        const cell = document.createElement("span");
-        if (zone.tz === homeZone) cell.className = "current";
-        const time = document.createElement("span");
-        time.textContent = timeIn(zone.tz);
-        cell.append(zone.code + " ", time);
-        copy.append(cell, document.createTextNode(" — "));
-        cells.push(time);
-      });
-      return cells;
+    // Build one scrolling unit for a zone, returning a handle for time updates.
+    function makeItem(zone) {
+      const el = document.createElement("span");
+      const cell = document.createElement("span");
+      if (zone.tz === homeZone) cell.className = "current";
+      const time = document.createElement("span");
+      time.textContent = timeIn(zone.tz);
+      cell.append(zone.code + " ", time);
+      el.append(cell, document.createTextNode(" — "));
+      return { el, timeEl: time, tz: zone.tz, w: 0 };
     }
 
-    // The track is two identical copies sliding left by exactly one copy
-    // (translateX(-50%)) before snapping back. That is only gap-free if a
-    // single copy is at least as wide as the visible bar — otherwise its
-    // trailing edge clears the screen at the -50% mark and the bar blanks for a
-    // frame before the loop restarts. So we repeat the list enough times that
-    // one copy fills the viewport, then scale the duration by that repeat count
-    // to keep the scroll speed constant regardless of how many passes it took.
-    function buildTracks(list) {
-      copyA.textContent = "";
-      const probe = appendPass(list, copyA);
-      const onePassW = copyA.getBoundingClientRect().width;
-      const reps = onePassW > 0
-        ? Math.max(1, Math.ceil(clock.clientWidth / onePassW))
-        : 1;
-
-      let cellsA = probe;
-      let cellsB = [];
-      copyB.textContent = "";
-      cellsB = cellsB.concat(appendPass(list, copyB));
-      for (let r = 1; r < reps; r++) {
-        cellsA = cellsA.concat(appendPass(list, copyA));
-        cellsB = cellsB.concat(appendPass(list, copyB));
+    // Lay down enough repeats of the list that the chain is at least one full
+    // screen wider than the viewport. The extra screen of buffer means there is
+    // always content queued to the right as items recycle off the left, so the
+    // treadmill can never run dry and reveal a gap.
+    function buildTrack(list) {
+      track.textContent = "";
+      items = [];
+      list.forEach((zone) => {
+        const item = makeItem(zone);
+        items.push(item);
+        track.append(item.el);
+      });
+      const onePassW = track.getBoundingClientRect().width;
+      const target = clock.clientWidth + onePassW;
+      let totalW = onePassW;
+      while (onePassW > 0 && totalW < target) {
+        list.forEach((zone) => {
+          const item = makeItem(zone);
+          items.push(item);
+          track.append(item.el);
+        });
+        totalW += onePassW;
       }
+      // Keep the same on-screen speed as the old 36s-per-pass animation.
+      pxPerSecond = onePassW > 0 ? onePassW / SECONDS_PER_PASS : 0;
+      items.forEach((item) => { item.w = item.el.getBoundingClientRect().width; });
+      offset = 0;
+      track.style.transform = "translateX(0)";
+    }
 
-      track.style.animationDuration = reps * SECONDS_PER_PASS + "s";
-      return { cellsA, cellsB };
+    function frame(ts) {
+      if (lastTs === null) lastTs = ts;
+      offset += pxPerSecond * (ts - lastTs) / 1000;
+      lastTs = ts;
+      // Recycle every item that has fully scrolled past the left edge. Moving it
+      // to the end and subtracting its width keeps the visible content fixed, so
+      // the offset stays small and bounded instead of growing without limit.
+      while (items.length && items[0].w > 0 && items[0].w <= offset) {
+        const first = items.shift();
+        offset -= first.w;
+        track.append(first.el);
+        items.push(first);
+      }
+      track.style.transform = "translateX(" + (-offset) + "px)";
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function startAnimation() {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = null;
+      lastTs = null;
+      if (reduceMotion.matches) {
+        offset = 0;
+        track.style.transform = "translateX(0)";
+        return;
+      }
+      rafId = requestAnimationFrame(frame);
     }
 
     function renderClock() {
@@ -407,28 +433,28 @@
       const signature =
         list.map((zone) => zone.tz).join("|") + "@" + homeZone + "@" + clock.clientWidth;
       if (signature !== clockSignature) {
-        const built = buildTracks(list);
-        timeCellsA = built.cellsA;
-        timeCellsB = built.cellsB;
-        currentList = list;
+        buildTrack(list);
         clockSignature = signature;
+        startAnimation();
       }
-      // Cells repeat the list, so map each one back to its zone by its position.
-      for (let i = 0; i < timeCellsA.length; i++) {
-        const time = timeIn(currentList[i % currentList.length].tz);
-        if (timeCellsA[i].textContent !== time) timeCellsA[i].textContent = time;
-        if (timeCellsB[i].textContent !== time) timeCellsB[i].textContent = time;
-      }
+      // Each item carries its own zone, so updating in place needs no indexing.
+      items.forEach((item) => {
+        const time = timeIn(item.tz);
+        if (item.timeEl.textContent !== time) item.timeEl.textContent = time;
+      });
     }
 
-    // The viewport width and the (async) web font both change how many passes
-    // are needed; rebuild when either settles so a copy always covers the bar.
+    // The viewport width and the (async) web font both change item widths;
+    // rebuild when either settles so the buffer still covers the bar.
     window.addEventListener("resize", renderClock);
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => {
         clockSignature = null;
         renderClock();
       });
+    }
+    if (reduceMotion.addEventListener) {
+      reduceMotion.addEventListener("change", startAnimation);
     }
 
     renderClock();
