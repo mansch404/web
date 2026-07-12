@@ -229,7 +229,7 @@
         <tr>
           <td data-i18n="contactLabel">Contact</td>
           <td>
-            <a href="mailto:manuel@flits.cc">Email</a>
+            <a href="#" id="email-link">Email</a>
             <a href="https://cal.com/manuelasbeck/30min">Book a call</a>
 
           <!--
@@ -271,6 +271,20 @@
         element.textContent = translations.de[element.dataset.i18n];
       });
     }
+
+    // The contact address is deliberately absent from the static HTML — no
+    // mailto:, no user@domain anywhere a harvester's regex could match. The
+    // href is assembled from these parts the first time a human interacts
+    // with the link (hover, keyboard focus, touch, or click), interactions
+    // even JS-executing scrapers don't simulate.
+    const emailParts = ["manuel", "flits.cc"];
+    const emailLink = document.getElementById("email-link");
+    function armEmailLink() {
+      emailLink.href = "mailto:" + emailParts.join(String.fromCharCode(64));
+    }
+    ["pointerenter", "focus", "touchstart", "click"].forEach((type) => {
+      emailLink.addEventListener(type, armEmailLink);
+    });
 
     const zones = [
       { code: "MUC", tz: "Europe/Berlin" },

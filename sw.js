@@ -1,5 +1,5 @@
 // Minimal offline cache so the home-screen app opens without a connection.
-const CACHE = "asbeck-v1";
+const CACHE = "asbeck-v2";
 const ASSETS = [
   "/",
   "/index.html",
